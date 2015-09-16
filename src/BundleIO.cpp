@@ -41,21 +41,21 @@
 /* Load keys from a file */
 void BaseApp::LoadKeys(bool descriptor)
 {
-    printf("[SifterApp::LoadKeys] Loading keys...\n");
+    printf("[LoadKeys] Loading keys...\n");
 
     clock_t start = clock();
 
     int num_images = GetNumImages();
 
     for (int i = 0; i < num_images; i++) {
-        printf("[SifterApp::LoadKeys] Loading keys from image %d...\n", i);
+        printf("[LoadKeys] Loading keys from image %d...\n", i);
         fflush(stdout);
 	m_image_data[i].LoadKeys(descriptor);
     }
 
     clock_t end = clock();
     
-    printf("[SifterApp::LoadKeys] Loaded keys in %0.3fs\n", 
+    printf("[LoadKeys] Loaded keys in %0.3fs\n", 
 	   (end - start) / (double) CLOCKS_PER_SEC);
 }
 
@@ -73,14 +73,11 @@ void BaseApp::ReadMatchFile(int i, int j)
         fscanf(f, "%d", &num_matches);
 		
         if (num_matches < MIN_MATCHES) {
-            // RemoveMatch(i, j);
-            // RemoveMatch(j, i);
             fclose(f);
             return;
         }
 
         SetMatch(i, j);
-        // SetMatch(j, i);
 
         std::vector<KeypointMatch> matches;
 		
@@ -137,9 +134,6 @@ void BaseApp::LoadMatchTable(const char *filename) {
         sscanf(buf, "%d %d\n", &i1, &i2);
 
         SetMatch(i1, i2);
-        // SetMatch(i2, i1);
-        // m_matches[i1 * num_images + i2] = true;
-        // m_matches[i2 * num_images + i1] = true;
 
         /* Read the number of matches */
         int nMatches;
@@ -165,7 +159,6 @@ void BaseApp::LoadMatchTable(const char *filename) {
         }
 
         MatchIndex idx = GetMatchIndex(i1, i2);
-        // m_match_lists[idx] = matches;
         m_matches.GetMatchList(idx) = matches;
     }
     
@@ -265,7 +258,6 @@ void BaseApp::LoadMatches() {
             fflush(stdout);
 
             /* Set all matches to false */
-            // ClearMatches();
             RemoveAllMatches();
 
             char buf[256];
@@ -284,8 +276,6 @@ void BaseApp::LoadMatches() {
         }
     }
 
-    // WriteMatchTableDrew(".init");
-
     PruneDoubleMatches();
 
     m_matches_loaded = true;
@@ -299,7 +289,6 @@ void BaseApp::RemoveAllMatches()
 /* Load a list of image names from a file */
 void BaseApp::LoadImageNamesFromFile(FILE *f)
 {
-    // m_image_names.clear();
     m_image_data.clear();
 
     char buf[256];
@@ -327,12 +316,8 @@ void BaseApp::LoadImageNamesFromFile(FILE *f)
             key_buf[len - 2] = 'e';
             key_buf[len - 1] = 'y';
 
-            // char key_path[512];
-            // sprintf(key_path, "%s/%s", m_key_directory, key_buf);
             data.m_key_name = strdup(key_buf);
         }
-
-        // printf("Keyname: %s\n", data.m_key_name);
 
 #if 0
 	if (log != NULL) {
@@ -416,10 +401,9 @@ void BaseApp::LoadImageNamesFromFile(FILE *f)
 	// wxSafeYield();
     }
 
-    // Create the match table
+    /* Create the match table */
     m_matches = MatchTable(GetNumImages());
 
-    // ClearMatches();
     RemoveAllMatches();
 
     m_matches_computed = true;
@@ -430,9 +414,9 @@ void BaseApp::LoadImageNamesFromFile(FILE *f)
 }
 
 /* Read in information about the world */
-void BaseApp::ReadBundleFile(char *filename)
+void BaseApp::ReadBundleFile(const char *filename)
 {
-    printf("[SifterApp::ReadBundleFile] Reading file...\n");
+    printf("[ReadBundleFile] Reading file...\n");
 
     FILE *f = fopen(filename, "r");
     if (f == NULL) {
@@ -464,7 +448,7 @@ void BaseApp::ReadBundleFile(char *filename)
         sscanf(first_line, "%d %d\n", &num_images, &num_points);
     }
 
-    printf("[SifterApp::ReadBundleFile] Reading %d images and %d points...\n",
+    printf("[ReadBundleFile] Reading %d images and %d points...\n",
         num_images, num_points);
 
     if (num_images != GetNumImages()) {
@@ -560,7 +544,7 @@ void BaseApp::ReadBundleFile(char *filename)
             fscanf(f, "%d %d", &view, &key);
 
             if (!m_image_data[view].m_camera.m_adjusted) {
-                // printf("[SifterApp::ReadBundleFile] "
+                // printf("[ReadBundleFile] "
                 //        "Removing view %d from point %d\n", view, i);
             } else {
                 /* Check cheirality */
@@ -572,7 +556,7 @@ void BaseApp::ReadBundleFile(char *filename)
                     
                     pt.m_views.push_back(ImageKey(view, key));
                 } else {
-                    printf("[SifterApp::ReadBundleFile] "
+                    printf("[ReadBundleFile] "
                            "Removing view %d from point %d [cheirality]\n", 
                                view, i);
                     // pt.m_views.push_back(ImageKey(view, key));
@@ -618,11 +602,11 @@ void BaseApp::ReadBundleFile(char *filename)
 
     fclose(f);
 
-    printf("[SifterApp::ReadBundleFile] %d / %d points visible to more than 2 cameras!\n", 
+    printf("[ReadBundleFile] %d / %d points visible to more than 2 cameras!\n", 
         num_min_views_points, num_points);
 }
 
-void BaseApp::ReloadBundleFile(char *filename)
+void BaseApp::ReloadBundleFile(const char *filename)
 {
 #ifndef __DEMO__
     /* Count the old number of cameras */
@@ -743,7 +727,7 @@ void BaseApp::ClearModel()
 #ifndef __DEMO__
 /* Dump an output file containing information about the current
 * state of the world */
-void BaseApp::DumpOutputFile(char *output_dir, char *filename, 
+void BaseApp::DumpOutputFile(const char *output_dir, const char *filename, 
                              int num_images, int num_cameras, int num_points,
                              int *added_order, 
                              camera_params_t *cameras, 
@@ -769,12 +753,9 @@ void BaseApp::DumpOutputFile(char *output_dir, char *filename,
         return;
     }
 
-    // if (output_radial_distortion) {
     /* Print version number */
-    // fprintf(f, "# Bundle file v0.4\n");
     fprintf(f, "# Bundle file v0.3\n");
-    // }
-
+    /* Print number of cameras and points */
     fprintf(f, "%d %d\n", num_images, num_visible_points);
 
     /* Dump cameras */
@@ -796,15 +777,9 @@ void BaseApp::DumpOutputFile(char *output_dir, char *filename,
         }
 
         if (idx == -1) {
-            // if (!output_radial_distortion)
-            //     fprintf(f, "0\n");
-            // else
             fprintf(f, "0 0 0\n");
             fprintf(f, "0 0 0\n0 0 0\n0 0 0\n0 0 0\n");
         } else {
-            // if (!output_radial_distortion)
-            //     fprintf(f, "%0.10e\n", cameras[idx].f);
-            // else
             fprintf(f, "%0.10e %0.10e %0.10e\n", 
                     cameras[idx].f, cameras[idx].k[0], cameras[idx].k[1]);
 
@@ -837,7 +812,6 @@ void BaseApp::DumpOutputFile(char *output_dir, char *filename,
             /* Position */
             fprintf(f, "%0.10e %0.10e %0.10e\n", 
                     Vx(points[i]), Vy(points[i]), Vz(points[i]));
-            // Vx(points[idx]), Vy(points[idx]), Vz(points[idx]));
 
             /* Color */
             fprintf(f, "%d %d %d\n", 
@@ -896,7 +870,7 @@ void BaseApp::DumpOutputFile(char *output_dir, char *filename,
 
     clock_t end = clock();
 
-    printf("[SifterApp::DumpOutputFile] Wrote file in %0.3fs\n",
+    printf("[DumpOutputFile] Wrote file in %0.3fs\n",
         (double) (end - start) / (double) CLOCKS_PER_SEC);
 }
 #endif
@@ -910,13 +884,13 @@ void BaseApp::WriteCamerasXML(const char *filename)
     FILE *f = fopen(filename, "w");
 
     if (f == NULL) {
-	printf("[SifterApp::WriteCamerasXML] "
+	printf("[WriteCamerasXML] "
 	       "Error opening file %s for writing\n", filename);
 	return;
     }
     
     fprintf(f, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n\n");
-    char *url_base = 
+    const char *url_base = 
 	"http://grail.cs.cornell.edu/projects/phototour/trevi/images";
 
     fprintf(f, "<url_base> %s </url_base>\n", url_base);
@@ -942,7 +916,7 @@ void BaseApp::WritePointsXML(const char *filename)
     int min_views = 3;
 
     if (f == NULL) {
-	printf("[SifterApp::WritePointsXML] "
+	printf("[WritePointsXML] "
 	       "Error opening file %s for writing\n", filename);
 	return;
     }
@@ -963,7 +937,7 @@ void BaseApp::WritePointsXML(const char *filename)
     fprintf(f, "</points>\n");
     fclose(f);
 
-    printf("[SifterApp::WritePointsXML] %d / %d points seen by >= %d views\n",
+    printf("[WritePointsXML] %d / %d points seen by >= %d views\n",
 	   num_ge2, num_points, min_views);
 }
 
@@ -974,7 +948,7 @@ void BaseApp::WritePointsGeoXML(const char *filename)
     int min_views = 2;
 
     if (f == NULL) {
-	printf("[SifterApp::WritePointsXML] "
+	printf("[WritePointsXML] "
 	       "Error opening file %s for writing\n", filename);
 	return;
     }
@@ -986,7 +960,6 @@ void BaseApp::WritePointsGeoXML(const char *filename)
     int num_ge2 = 0;
 
     for (int i = 0; i < num_points; i++) {
-        // if (m_num_views_orig[i] >= min_views) {
         if ((int) m_point_data[i].m_views.size() >= min_views) {
             m_point_data[i].WriteGeoXML(f);
             num_ge2++;
@@ -996,11 +969,11 @@ void BaseApp::WritePointsGeoXML(const char *filename)
     fprintf(f, "</points>\n");
     fclose(f);
 
-    printf("[SifterApp::WritePointsXML] %d / %d points seen by >= %d views\n",
+    printf("[WritePointsXML] %d / %d points seen by >= %d views\n",
 	   num_ge2, num_points, min_views);
 }
 
-void BaseApp::ReadMatchTableDrew(const char *append) 
+void BaseApp::ReadMatchTable(const char *append) 
 {
     int num_images = GetNumImages();
     unsigned long int num_matches_total = 0;
@@ -1013,7 +986,7 @@ void BaseApp::ReadMatchTableDrew(const char *append)
     FILE *f1 = fopen(buf, "r");
     
     if (f0 == NULL || f1 == NULL) {
-        printf("[SifterApp::ReadMatchTableDrew] "
+        printf("[ReadMatchTable] "
                "Error opening files for reading.\n");
         return;
     }
@@ -1061,14 +1034,14 @@ void BaseApp::ReadMatchTableDrew(const char *append)
         }
     }
 
-    printf("[ReadMatchTableDrew] Read %lu matches in total\n",
+    printf("[ReadMatchTable] Read %lu matches in total\n",
            num_matches_total);
 
     fclose(f0);
     fclose(f1);
 }
 
-void BaseApp::WriteMatchTableDrew(const char *append) 
+void BaseApp::WriteMatchTable(const char *append) 
 {
     int num_images = GetNumImages();
 
@@ -1080,7 +1053,7 @@ void BaseApp::WriteMatchTableDrew(const char *append)
     FILE *f1 = fopen(buf, "w");
     
     if (f0 == NULL || f1 == NULL) {
-        printf("[SifterApp::WriteMatchTableDrew] "
+        printf("[WriteMatchTable] "
                "Error opening files for writing.\n");
         return;
     }
@@ -1136,11 +1109,11 @@ static char ply_header[] =
 "end_header\n";
 
 /* Write point files to a ply file */
-void BaseApp::DumpPointsToPly(char *output_directory, char *filename, 
+void BaseApp::DumpPointsToPly(const char *output_directory, 
+                              const char *filename, 
                               int num_points, int num_cameras, 
                               v3_t *points, v3_t *colors,
-                              camera_params_t *cameras 
-                              /*bool reflect*/) 
+                              camera_params_t *cameras) 
 {
     int num_good_pts = 0;
 
@@ -1175,8 +1148,6 @@ void BaseApp::DumpPointsToPly(char *output_directory, char *filename,
 	/* Output the vertex */
 	fprintf(f, "%0.6e %0.6e %0.6e %d %d %d\n", 
 		Vx(points[i]), Vy(points[i]), Vz(points[i]),
-		// Vx(points[idx]), Vy(points[idx]), Vz(points[idx]),
-                // (reflect ? -1 : 1) * Vz(points[i]),
 		iround(Vx(colors[i])), 
 		iround(Vy(colors[i])), 
 		iround(Vz(colors[i])));
@@ -1192,16 +1163,11 @@ void BaseApp::DumpPointsToPly(char *output_directory, char *filename,
 	
 	if ((i % 2) == 0)
 	    fprintf(f, "%0.6e %0.6e %0.6e 0 255 0\n", c[0], c[1], c[2]);
-                    // (reflect ? -1 : 1) * c[2]);
 	else
 	    fprintf(f, "%0.6e %0.6e %0.6e 255 0 0\n", c[0], c[1], c[2]);
-                    // (reflect ? -1 : 1) * c[2]);
 
 	double p_cam[3] = { 0.0, 0.0, -0.05 };
 	double p[3];
-
-        // if (!reflect)
-        //    p_cam[2] *= -1.0;
 
 	matrix_product(3, 3, 3, 1, Rinv, p_cam, p);
 
@@ -1210,7 +1176,7 @@ void BaseApp::DumpPointsToPly(char *output_directory, char *filename,
 	p[2] += c[2];
 
 	fprintf(f, "%0.6e %0.6e %0.6e 255 255 0\n",
-		p[0], p[1], p[2]); // (reflect ? -1 : 1) * p[2]);
+		p[0], p[1], p[2]);
     }
 
     fclose(f);
@@ -1231,7 +1197,7 @@ void BaseApp::ReadKeyColors()
 void BaseApp::ReadCameraConstraints() 
 {
     if (FileExists("camera-constraints.txt")) {
-	printf("[SifterApp::ReadCameraConstraints] Reading constraints\n");
+	printf("[ReadCameraConstraints] Reading constraints\n");
 
 	FILE *f = fopen("camera-constraints.txt", "r");
 	char buf[256];
@@ -1277,7 +1243,7 @@ void BaseApp::ReadPointConstraints()
     FILE *f = fopen(m_point_constraint_file, "r");
     
     if (f == NULL) {
-	printf("[SifterApp::ReadPointConstraints] Error opening file %s "
+	printf("[ReadPointConstraints] Error opening file %s "
 	       "for reading\n", m_point_constraint_file);
 	return;
     }
@@ -1312,7 +1278,7 @@ void BaseApp::ReadPointConstraints()
 
 	m_point_constraints[pt_idx] = v3_new(x, y, -z);
 
-	printf("[SifterApp::ReadPointConstraints] Constraining %d: "
+	printf("[ReadPointConstraints] Constraining %d: "
 	       "%0.3f %0.3f %0.3f (%0.3f %0.3f %0.3f) => %0.3f %0.3f %0.3f\n",
 	       pt_idx, 
 	       m_point_data[pt_idx].m_pos[0], 
@@ -1391,7 +1357,7 @@ void BaseApp::ReadIgnoreFile()
     FILE *f = fopen(m_ignore_file, "r");
 
     if (f == NULL) {
-	printf("[SifterApp::ReadIgnoreFile] Error opening file %s "
+	printf("[ReadIgnoreFile] Error opening file %s "
 	       "for reading\n", m_ignore_file);
 	return;
     }
@@ -1402,12 +1368,12 @@ void BaseApp::ReadIgnoreFile()
 	int img = atoi(buf);
 	
 	if (img < 0 || img >= num_images) {
-	    printf("[SifterApp::ReadIgnoreFile] "
+	    printf("[ReadIgnoreFile] "
 		   "Error: image %d out of range\n", img);
 	    continue;
 	}
 	
-	printf("[SifterApp::ReadIgnoreFile] Ignoring image %d\n", img);
+	printf("[ReadIgnoreFile] Ignoring image %d\n", img);
 	m_image_data[img].m_ignore_in_bundle = true;
     }
 
@@ -1428,7 +1394,7 @@ void BaseApp::InitializeImagesFromFile(FILE *f)
 	data.InitFromString(buf, m_image_directory, false);
 	data.m_licensed = true;
 
-	printf("[SifterApp::InitializeImagesFromFile] Initializing image %s\n",
+	printf("[InitializeImagesFromFile] Initializing image %s\n",
 	       data.m_name);
 
 	/* Read the extra data */
@@ -1443,12 +1409,12 @@ void BaseApp::InitializeImagesFromFile(FILE *f)
     UnscaleCameras(num_images);
 }
 
-void BaseApp::ReadLines3D(char *filename) 
+void BaseApp::ReadLines3D(const char *filename) 
 {
-
+    /* Not implemented... */
 }
 
-void BaseApp::WriteLines3D(char *filename)
+void BaseApp::WriteLines3D(const char *filename)
 {
-
+    /* Not implemented... */
 }

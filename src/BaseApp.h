@@ -1,6 +1,5 @@
 /* 
  *  Copyright (c) 2008-2010  Noah Snavely (snavely (at) cs.cornell.edu)
- *    and the University of Washington
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +29,6 @@
 #include "ImageData.h"
 
 
-
 #ifndef __DEMO__
 #include "sfm.h"
 #endif /* __DEMO__ */
@@ -42,8 +40,8 @@
 #include <list>
 
 #ifndef WIN32
-#include <ext/hash_map>
-#include <ext/hash_set>
+#include <unordered_map>
+#include <unordered_set>
 #else
 #include <hash_map>
 #include <hash_set>
@@ -104,7 +102,7 @@ namespace stdext {
     };
 }
 #else
-namespace __gnu_cxx {
+namespace std {
     template<>
     struct hash<MatchIndex> {
         size_t
@@ -155,7 +153,7 @@ public:
 typedef stdext::hash_map<unsigned int, std::vector<KeypointMatch> >
    MatchAdjTable;
 #else
-typedef __gnu_cxx::hash_map<unsigned int, std::vector<KeypointMatch> >
+typedef unordered_map<unsigned int, std::vector<KeypointMatch> >
    MatchAdjTable;
 #endif
 
@@ -390,10 +388,10 @@ public:
     /* Output routines */
 
     /* IO routines */
-    void ReadGeometricConstraints(char *filename);
-    void WriteGeometricConstraints(char *filename);
-    void WriteTracksForSameer(char *filename);
+    void ReadGeometricConstraints(const char *filename);
+    void WriteGeometricConstraints(const char *filename);
     void WriteTracks(char *filename);
+    void WriteTracks2(char *filename);
     void ReadCameraConstraints();
     void ReadPointConstraints();
     void ReadIntrinsicsFile();
@@ -407,19 +405,19 @@ public:
     void ReadKeyColors();
 
     /* Read in information about the world */
-    void ReadBundleFile(char *filename);
-    void ReloadBundleFile (char *filename);
+    void ReadBundleFile(const char *filename);
+    void ReloadBundleFile (const char *filename);
 
     /* Read/write line segments */
-    void ReadLines3D(char *filename);
-    void WriteLines3D(char *filename);
+    void ReadLines3D(const char *filename);
+    void WriteLines3D(const char *filename);
 
     /* Clear the current model */
     void ClearModel();
 
-    /* Write the match table in Drew's format */
-    void WriteMatchTableDrew(const char *append = "");
-    void ReadMatchTableDrew(const char *append = "");
+    /* Read / write the match table */
+    void ReadMatchTable(const char *append = "");
+    void WriteMatchTable(const char *append = "");
 
     /* Initialize images read from a file without performing bundle
      * adjustment */
@@ -450,14 +448,14 @@ public:
 
 #ifndef __DEMO__
     /* Write point files to a ply file */
-    void DumpPointsToPly(char *output_directory, char *filename, 
+    void DumpPointsToPly(const char *output_directory, const char *filename, 
                          int num_points, int num_cameras, 
 			 v3_t *points, v3_t *colors, camera_params_t *cameras
                          /*bool reflect = true*/);
 
     /* Dump an output file containing information about the current
      * state of the world */
-    void DumpOutputFile(char *output_dir, char *filename, 
+    void DumpOutputFile(const char *output_dir, const char *filename, 
 			int num_images, int num_cameras, int num_points,
 			int *added_order, 
 			camera_params_t *cameras, v3_t *points, v3_t *colors,
@@ -559,7 +557,7 @@ public:
 #endif
 
 #ifndef WIN32
-    __gnu_cxx::hash_map<MatchIndex, TransformInfo> m_transforms;
+    unordered_map<MatchIndex, TransformInfo> m_transforms;
 #else
     stdext::hash_map<MatchIndex, TransformInfo> m_transforms;
 #endif
@@ -580,14 +578,14 @@ public:
     bool m_bundle_provided;      /* Was a bundle adjustment file given? */
     char *m_bundle_file;         /* Bundle file */
 
-    char *m_match_directory;     /* Which directory are the matches
-				  * stored in? */
-    char *m_match_index_dir;     /* Which directory are match indexes
-                                  * stored in? */
-    char *m_match_table;         /* File where match table is stored */
-    char *m_key_directory;
-    char *m_image_directory;
-    char *m_sift_binary;         /* Where can we find the sift binary? */
+    const char *m_match_directory;     /* Which directory are the matches
+                                        * stored in? */
+    const char *m_match_index_dir;     /* Which directory are match indexes
+                                        * stored in? */
+    const char *m_match_table;         /* File where match table is stored */
+    const char *m_key_directory;
+    const char *m_image_directory;
+    const char *m_sift_binary;         /* Where can we find the sift binary? */
 
     bool m_estimate_up_vector_szeliski;  /* Estimate the up vector
 					  * using Rick's method? */

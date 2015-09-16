@@ -116,7 +116,7 @@ bool BundlerApp::EstimateRelativePose(int i1, int i2,
                 DecomposeHomography(H, f1, f2, R1, t1, R2, t2, p10, p20);
         
             if (success) {
-                printf("[SifterApp::BundleTwoFrame] Using homography "
+                printf("[BundleTwoFrame] Using homography "
                        "for initialization\n");
 
                 /* Decide which solution to use */
@@ -226,6 +226,9 @@ bool BundlerApp::EstimateRelativePose2(int i1, int i2,
                                512, /* m_fmatrix_rounds, 8 * m_fmatrix_rounds */
                                0.25 * m_fmatrix_threshold, // 0.003, // 0.004 /*0.001,*/ // /*0.5 **/ m_fmatrix_threshold, 
                                K1, K2, R0, t0);
+        printf("R,t\n");
+        matrix_print(3, 3, R0);
+        matrix_print(1, 3, t0);
     } else {
         std::vector<Keypoint> k1 = m_image_data[i1].UndistortKeysCopy();
         std::vector<Keypoint> k2 = m_image_data[i2].UndistortKeysCopy();

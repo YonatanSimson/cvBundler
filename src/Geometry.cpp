@@ -56,7 +56,7 @@ void PointData::WriteCoordinates(FILE *f)
 /* Write the point data in XML */
 void PointData::WriteXML(FILE *f)
 {
-    static char *spacer = "    ";
+    static const char *spacer = "    ";
 
     /* Position and color */
     fprintf(f, "%s<point>\n", spacer);
@@ -903,7 +903,7 @@ std::vector<int> FitPlaneToPoints(const std::vector<PointData> &points,
                                   double *up)
 {
     if (par_to_up && perp_to_up) {
-	printf("[SifterApp::FitPlaneToPoints] Error: cannot be both "
+	printf("[FitPlaneToPoints] Error: cannot be both "
 	       "parallel and perpendicular to the up vector!\n");
 	perp_to_up = false;
     }

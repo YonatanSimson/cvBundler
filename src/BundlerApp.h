@@ -31,7 +31,7 @@ class BundlerApp : public BaseApp
 public:
     BundlerApp() {
         /* Set initial values */
-        m_bundle_version = 0.1;
+        m_bundle_version = 0.3;
 
         m_fisheye = false;
         m_fixed_focal_length = true;
@@ -79,6 +79,7 @@ public:
         m_max_track_views = 100000;
         m_min_num_feat_matches = 16;
         m_min_max_matches = 16;
+        m_num_matches_add_camera = -1; /* No maximum by default */
         m_ray_angle_threshold = 2.0;
 
         m_keypoint_border_width = 0;
@@ -94,30 +95,21 @@ public:
         m_key_directory = ".";
         m_image_directory = ".";
         m_output_directory = ".";
-        // m_sift_binary = SIFT_COMMAND;
         m_use_intrinsics = false;
         
-        // m_matches = NULL;
-        // m_match_lists = NULL;
         m_matches_computed = false;
-        m_match_global = false;
         m_ann_max_pts_visit = 400;
-        m_global_nn_sigma = 16.0;
-        m_global_knn = 200;
         
-        // m_transforms = NULL;
-        // m_set_transforms = NULL;
-        // m_images_per_set = 0;
-
         m_matches_loaded = false;
         m_features_coalesced = false;
 
         m_assemble = false;
-        m_server_mode = false;
-        m_server_port = -1;
         m_run_bundle = false;
         m_rerun_bundle = false;
         m_fast_bundle = true;
+#ifdef __USE_CERES__
+        m_use_ceres = false;
+#endif /* __USE_CERES__ */
         m_skip_full_bundle = false;
         m_skip_add_points = false;
         m_use_angular_score = false;
@@ -132,10 +124,6 @@ public:
         m_rotate_cameras_file = NULL;
         m_output_relposes = false;
         m_output_relposes_file = NULL;
-
-
-
-        m_sky_model_file = NULL;
 
         m_compute_covariance = false;
         m_covariance_fix1 = -1;
@@ -379,12 +367,40 @@ public:
                              double *V = NULL, double *W = NULL);
     void ReRunSFM(double *S = NULL, double *U = NULL, double *V = NULL, 
                   double *W = NULL);
+
+    /* Run bundle adjustment on a given reconstruction */
     double RunSFM(int num_pts, int num_cameras, int start_camera,
-		  bool fix_points, camera_params_t *init_camera_params,
-		  v3_t *init_pts, int *added_order, v3_t *colors,
-		  std::vector<ImageKeyVector> &pt_views, double eps2 = 1.0e-12,
+                  bool fix_points, camera_params_t *init_camera_params,
+                  v3_t *init_pts, int *added_order, v3_t *colors,
+                  std::vector<ImageKeyVector> &pt_views, 
+                  int max_iter = 0, int max_iter2 = 0, 
+                  int verbosity = 0, double eps2 = 1.0e-12,
                   double *S = NULL, double *U = NULL, double *V = NULL,
-                  double *W = NULL, bool remove_outliers = true);
+                  double *W = NULL, bool remove_outliers = true,
+                  bool final_bundle = false, 
+                  bool write_intermediate = false);
+
+    double RunSFM_SBA(int num_pts, int num_cameras, int start_camera,
+                      bool fix_points, camera_params_t *init_camera_params,
+                      v3_t *init_pts, int *added_order, v3_t *colors,
+                      std::vector<ImageKeyVector> &pt_views, 
+                      double eps2 = 1.0e-12,
+                      double *S = NULL, double *U = NULL, double *V = NULL,
+                      double *W = NULL, bool remove_outliers = true);
+
+#ifdef __USE_CERES__
+    double RunSFM_Ceres(int num_pts, int num_cameras, int start_camera,
+                        bool fix_points, camera_params_t *init_camera_params,
+                        v3_t *init_pts, int *added_order, v3_t *colors,
+                        std::vector<ImageKeyVector> &pt_views, 
+                        int max_iter = 0, int max_iter2 = 0, 
+                        int verbosity = 0, double eps2 = 1.0e-12,
+                        double *S = NULL, double *U = NULL, double *V = NULL,
+                        double *W = NULL, bool remove_outliers = true,
+                        bool final_bundle = false, 
+                        bool write_intermediate = false);
+#endif /* __USE_CERES__ */
+
     double RunSFMNecker(int i1, int i2, 
                         camera_params_t *cameras, 
                         int num_points, v3_t *points, v3_t *colors,
@@ -392,6 +408,8 @@ public:
                         camera_params_t *cameras_new,
                         v3_t *points_new, 
                         double threshold);
+
+
 #endif /* __DEMO__ */
 
     bool BundleTwoFrame(int i1, int i2, TwoFrameModel *model, 
@@ -433,6 +451,7 @@ public:
 
     /* Find a ground plane in the scene */
     void FindGroundPlane();
+
     /* Find a sky plane in the scene */
     void FindSkyPlane();
 
@@ -475,12 +494,6 @@ public:
     int m_ann_max_pts_visit;     /* Maximum points to visit during
                                   * global matching */
 
-    bool m_match_global;         /* Compute matches using global matcher */
-    double m_global_nn_sigma;    /* Threshold from expected variance
-                                  * where features match */
-    int m_global_knn;            /* Number of neighbors to find in
-                                  * global matching */
-
     bool m_optimize_for_fisheye; /* Optimize for fisheye-distorted
                                   * points */
 
@@ -516,10 +529,12 @@ public:
 
     int m_min_max_matches;           /* Minimum number of matches
                                       * needed to register an image */
+    int m_num_matches_add_camera;    /* Number of matches needed to 
+                                      * consider registering an image */
 
-    char *m_bundle_output_file;  /* Output file names for BA */
-    char *m_bundle_output_base;
-    char *m_output_directory;
+    const char *m_bundle_output_file;  /* Output file names for BA */
+    const char *m_bundle_output_base;
+    const char *m_output_directory;
 
     bool m_compute_covariance;   /* Compute the covariance of a
                                   * reconstruction */
@@ -562,8 +577,6 @@ public:
 
     bool m_features_coalesced;   /* Have features been coalesced */
 
-    int m_server_port;           /* Port to use when in server mode */
-    bool m_server_mode;          /* Run bundler as a server? */
     bool m_assemble;             /* Assemble the scene from the bottom up */
     bool m_run_bundle;           /* Should we run bundle adjustment
 				  * automatically? */
@@ -571,6 +584,12 @@ public:
 				  * automatically? */
     bool m_fast_bundle;          /* Should we run the fast version of
 				  * bundle adjustment? */
+
+#ifdef __USE_CERES__
+    bool m_use_ceres;            /* Use Ceres solver for 
+                                  * bundle adjustment? */
+#endif /* __USE_CERES__ */
+
     bool m_skip_full_bundle;     /* Skip full optimization stages */
     bool m_skip_add_points;      /* Don't add new points to the
                                   * optimization */
@@ -597,178 +616,12 @@ public:
     bool m_output_relposes;
     char *m_output_relposes_file;
 
-    bool m_segment_sky;          /* Activative sky segmentation */
-    char *m_sky_model_file; 
-
-
-
     bool m_enrich_points;        /* Enrich the point set? */
     bool m_zero_distortion_params; /* Set all distortion parameters to
                                     * zero */
 
     int argc;
     char **argv;
-};
-
-
-typedef std::pair<int,int> IntPair;
-
-class SkeletalApp : public BundlerApp
-{
-public:
-    SkeletalApp() {
-        BundlerApp();
-        m_start_camera = -1;
-    }
-
-    virtual bool OnInit();
-
-    /* Process command line options */
-    virtual void ProcessOptions(int argc, char **argv);
-
-    /* Estimate the global scene orientation based on geotags */
-    void EstimateGlobalOrientation(ModelMap &models);
-
-    /* Read in a set of initial rotations */
-    void ReadInitialRotations(const char *filename, double *Rout);
-    void ReadInitialTranslations(const char *filename, double *tout);
-    void ReadGlobalOrientation(const char *filename, double *R);
-    void WriteGlobalOrientation(const char *filename, double *R);
-
-    /* Refine the current set of rotations using pairwise rotations */
-    void RefineInitialRotations(ModelMap &models);
-    void RefineInitialTranslations(ModelMap &models);
-
-    /* Read in a set of rotations produced by a previous run */
-    void ReadRotationsFile(const char *filename, double *Rout);
-    
-    /* Estimate the confidences of geotags based on agreement with a
-     * global translation */
-    void ComputeGeotagConfidence(std::vector<IntPair> &pairs,
-                                 std::vector<bool> &pairs_correct,
-                                 std::vector<double> &confidence);
-
-#ifndef __DEMO__
-    /* Two-frame bundle adjustment */
-    ModelMap BundleAllPairs(char *out_file, 
-                            bool bundle_from_tracks, bool detect_duplicates);
-    // ModelMap ReadModels(FILE *f);
-
-    /* Estimate a similarity transform between two 2-frame models */
-    bool EstimateSimilarityTransform(const TwoFrameModel &m0, 
-                                     const TwoFrameModel &m1, 
-                                     MatchIndex idx1, MatchIndex idx2,
-                                     // double *S, 
-                                     double &scale,
-                                     bool verbose = false,
-                                     bool clip_inliers = false,
-                                     int *num_inliers = NULL, 
-                                     int *num_total = NULL);
-
-    void ComputeInitialTransforms(ModelMap &models, bool test_triangles);
-
-    double  EvaluateModelPath(ModelMap &models, const std::vector<int> nodes,
-                              double *Cout);
-    bool ComputeShortestPath(ModelMap &models, int i1, int i2,
-                             double &dist_final, double &scale_final,
-                             std::vector<int> &path, 
-                             bool &bounds_exceeded, bool check_bounds = false,
-                             bool verbose = false, 
-                             bool exit_when_reached = false, 
-                             int second_node = -1, int max_depth = -1,
-                             double bound_factor = 1.0);
-
-    void PrunePairGraph(ModelMap &models, PEdgeMap &p_edges, 
-                        double prune_factor);
-    void ConstructTSpanner(ModelMap &models, double t);
-    void ConstructTSpanner2(ModelMap &models, PEdgeMap &p_edges, double t);
-    void ConstructTSpanner3(ModelMap &models, PEdgeMap &p_edges, double t);
-    void ConstructTSpanner4(ModelMap &models, PEdgeMap &p_edges, double t);
-
-    bool CheckEdge(int i1, int i2,
-                   ModelMap &models, ModelMap &subgraph, double t);
-    bool EdgeIsShortestPath(ModelMap &models, int i1, int i2, 
-                            double bound_factor = 1.0);
-
-    typedef enum { White = 0, Gray = 1, Black = 2, PNode = 3} NodeState;
-    bool NodeConnected(int image, NodeState *states,
-                       ModelMap &models, ModelMap &subgraph);
-    void NodeConnectedThrough(int image, int link, NodeState *states,
-                              ModelMap &models, ModelMap &subgraph,
-                              int &num_connected, int &num_total);
-    bool EdgeCanBePruned(ModelMap &models, PEdgeMap &p_edges, 
-                         unsigned int i1, unsigned int i2);
-    void ColorIncidentEdgesGray(ModelMap &models, NodeState *states, 
-                                int i1, int i2, bool symmetric = false);
-    void ColorPNodes(ModelMap &models, PEdgeMap &p_edges, bool *p_node_flags, 
-                     int i1, int i2);
-    void ComputeEdgeIncidence(int i1, int i2, 
-                              ModelMap &models, NodeState *states,
-                              int &white_degree, int &incidence);
-    void TestTriangles(ModelMap &models);
-    void AddLinksFromGrayToBlack(ModelMap &models, ModelMap &subgraph,
-                                 NodeState *states, int *degrees_inter);
-    void AddStrongLinksFromGrayToBlack(ModelMap &models, ModelMap &subgraph,
-                                       NodeState *states, 
-                                       std::vector<int> components, 
-                                       int *degrees_inter);
-    void AddRequiredLinksFromBlackToBlackByWeight(ModelMap &models,
-                                                  ModelMap &subgraph,
-                                                  int num_images,
-                                                  NodeState *states,
-                                                  int *degrees,
-                                                  double t);
-    void AddRequiredLinksFromBlackToGray(ModelMap &models,
-                                         ModelMap &subgraph,
-                                         int num_images,
-                                         NodeState *states,
-                                         int *degrees, double t);
-    void AddRequiredLinksFromBlackToGrayByWeight(ModelMap &models,
-                                                 ModelMap &subgraph,
-                                                 int num_images,
-                                                 NodeState *states,
-                                                 int *degrees,
-                                                 double t);
-    void AddRequiredLinksFromGrayToGray(ModelMap &models,
-                                        ModelMap &subgraph,
-                                        int num_images,
-                                        NodeState *states,
-                                        int *degrees,
-                                        double t);
-    void AddRequiredLinksFromGrayToGrayByWeight(ModelMap &models,
-                                                ModelMap &subgraph,
-                                                int num_images,
-                                                NodeState *states,
-                                                int *degrees,
-                                                double t);
-#endif /* __DEMO__ */
-
-
-    /* **** Options **** */
-    bool m_bundle_from_tracks;   /* ... when computing pairwise recons. */
-    bool m_bundle_from_points;   /* ... when computing pairwise recons. */
-    double m_stretch_factor;     /* ... when computing spanner */    
-
-    bool m_detect_duplicates;    /* ... when computing pairwise recons. */
-
-    bool m_dump_pairs_sparse;    /* Write the pairs file to a nicer format */
-    bool m_estimate_orientation; /* Estimate global orientation */
-    bool m_threshold_twists;     /* Get rid of cameras with large
-                                  * twist */
-
-    char *m_initial_rotations_file;  /* Refine rotation matrices using
-                                      * this file for initialization */
-    char *m_initial_translations_file;  /* Refine translations using
-                                         * this file for initialization */
-    char *m_rotations_file;      /* Refined rotations produced on a
-                                  * previous run */
-    char *m_global_orientation_file;  /* Contains global scene
-                                       * orientation */
-
-    char *m_pairs_file;          /* File to read the pairwise
-                                  * reconstructions from */
-
-    // int m_start_camera;          /* Camera to seed the t-spanner */
 };
 
 #endif /* __bundlerapp_h__ */

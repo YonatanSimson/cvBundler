@@ -1,6 +1,5 @@
 /* 
  *  Copyright (c) 2008-2010  Noah Snavely (snavely (at) cs.cornell.edu)
- *    and the University of Washington
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,16 +51,6 @@
 #include "qsort.h"
 #include "util.h"
 
-#ifdef __WINDOWS_SIFT__
-  #define SIFT_COMMAND "/cygdrive/c/bin/siftWin32.exe"
-#else
-  #define SIFT_COMMAND "/homes/gws/snavely/code/bin/sift"
-//  #define SIFT_COMMAND "/home/jimmy/code/bin/keypoints"
-#endif
-
-// #define SIFT_COMMAND "/homes/gws/snavely/code/bin/keypoints_edit"
-// #define SIFT_COMMAND "/home/jimmy/code/bin/keypoints"
-
 #define SUBSAMPLE_LEVEL 1
 
 #define MIN_MATCHES 10
@@ -92,13 +81,7 @@ static void ReadFisheyeParameters(char *filename,
     
 	std::vector<std::string> toks;
 	
-	// wxStringTokenizer t(str, wxT(" "));
         Tokenize(str, toks, " ");
-
-	// while (t.HasMoreTokens()) {
-	//     wxString tok = t.GetNextToken();
-	//     toks.push_back(tok);
-	// }
 
 	if (strcmp(toks[0].c_str(), "FisheyeCenter:") == 0) {
 	    if (toks.size() != 3) {
@@ -180,7 +163,7 @@ void PrintUsage()
 	   "      --fisheye <paramfile>\n"
 	   "         Read fisheye parameters from given file\n"
 	   "      --init_pair1 <img1>\n"
-	   "      --init_pair2 <img2>\n"
+	   "      --init_pair2 <img1>\n"
 	   "         Indices of the images with which to seed\n"
            "         bundle adjustment\n"
            "      --estimate_distortion\n"
@@ -240,6 +223,11 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 	    {"run_bundle",   0, 0, 'r'},
 	    {"rerun_bundle", 0, 0, 'j'},
 	    {"slow_bundle",  0, 0, 'D'},
+
+#ifdef __USE_CERES__
+            {"use_ceres",    0, 0, 371},
+#endif /* __USE_CERES__ */            
+
             {"skip_full_bundle", 0, 0, 321},//
             {"skip_add_points", 0, 0, 322},//
 
@@ -282,7 +270,6 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
             {"trust_focal_estimate", 0, 0, '_'},
             {"estimate_ignored", 0, 0, 344},//
             {"reposition_scene", 0, 0, 'R'},//
-            {"segment_sky", 1, 0, 350},//
             {"keypoint_border_width", 1, 0, 355},//
             {"keypoint_border_bottom", 1, 0, 365},//
 
@@ -290,6 +277,7 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 	    {"max_track_views", 1, 0, 320},//
             {"min_max_matches", 1, 0, 362},//
             {"min_feature_matches", 1, 0, 369},//
+            {"num_matches_add_camera", 1, 0, 370},
 
 	    {"ray_angle_threshold", 1, 0, 'N'},
 	    {"estimate_distortion", 0, 0, 347},
@@ -315,7 +303,6 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 
             {"assemble",     0, 0, 308},//
 	    {"bundle",       1, 0, 'b'},
-            {"server_mode",  1, 0, 346},//
 	    {"match_dir",    1, 0, 'm'},
             {"match_index_dir", 1, 0, 366},
             {"match_table",  1, 0, 364},
@@ -323,10 +310,7 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
             {"key_dir",      1, 0, 301},//
 
             {"analyze_matches", 0, 0, 'M'},//
-            {"match_global", 0, 0, '<'},//
             {"ann_max_pts_visit", 1, 0, 302},//
-            {"global_knn", 1, 0, 303},//
-            {"global_nn_sigma", 1, 0, 304},//
 
 	    {"output_dir",   1, 0, 'u'},
 	    {"use_constraints", 0, 0, '=' },
@@ -403,21 +387,27 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 	    case 'o':
 		m_bundle_output_file = strdup(optarg);
 		break;
+
 	    case 'a':
 		m_bundle_output_base = strdup(optarg);
 		break;
+
 	    case 'i':
 		m_init_focal_length = atof(optarg);
 		break;
+
 	    case 'v':
 		m_fixed_focal_length = false;
 		break;
+
 	    case 'x':
 		m_fixed_focal_length = true;
 		break;
+
 	    case 'r':
 		m_run_bundle = true;
 		break;
+
 	    case 'j':
 		m_rerun_bundle = true;
 		break;
@@ -425,6 +415,12 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 	    case 'D':
 		m_fast_bundle = false;
 		break;
+
+#ifdef __USE_CERES__
+            case 371:
+                m_use_ceres = true;
+                break;
+#endif /* __USE_CERES__ */
 
 	    case 321:
 		m_skip_full_bundle = true;
@@ -446,16 +442,9 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
                 m_prune_bad_points = true;
                 break;
 
-
-
             case 368:
                 m_output_relposes = true;
                 m_output_relposes_file = strdup(optarg);
-                break;
-
-            case 350:
-                m_segment_sky = true;
-                m_sky_model_file = strdup(optarg);
                 break;
 
             case 305:
@@ -474,8 +463,6 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
                 m_track_file = strdup(optarg);
                 break;
 
-
-
             case 340:
                 m_compute_covariance = true;
                 break;
@@ -487,25 +474,6 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
             case 342:
                 m_covariance_fix2 = atoi(optarg);
                 break;
-
-#if 0
-            case 352:
-                m_detect_duplicates = true;
-                break;
-            
-            case 353:
-                m_bundle_from_tracks = true;
-                break;
-
-            case 354:
-                m_bundle_from_points = true;
-                m_bundle_from_tracks = true;
-                break;
-
-            case 356:
-                m_stretch_factor = atof(optarg);
-                break;
-#endif
 
             case 355:
                 m_keypoint_border_width = atoi(optarg);
@@ -534,8 +502,6 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 	    case '@':
 		m_add_image_file = strdup(optarg);
 		break;
-
-
 
 	    case 'U':
 		m_use_focal_estimate = true;
@@ -616,17 +582,16 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
                 m_min_num_feat_matches = atoi(optarg);
                 break;
 
+            case 370:
+                m_num_matches_add_camera = atoi(optarg);
+                break;
+
 	    case 'N':
 		m_ray_angle_threshold = atof(optarg);
 		break;
 
             case 308: /* assemble */
                 m_assemble = true;
-                break;
-
-            case 346:
-                m_server_mode = true;
-                m_server_port = atoi(optarg);
                 break;
 
 	    case 'b':
@@ -662,21 +627,9 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
                 m_factor_essential = false;
                 break;
 
-            case '<':
-                m_match_global = true;
-                break;
-
             case 302:
                 m_ann_max_pts_visit = atoi(optarg);
                 printf("  ann_max_pts_visit: %d\n", m_ann_max_pts_visit);
-                break;
-            case 303:
-                m_global_knn = atoi(optarg);
-                printf("  global_knn: %d\n", m_global_knn);
-                break;
-            case 304:
-                m_global_nn_sigma = atof(optarg);
-                printf("  global_nn_sigma: %0.3f\n", m_global_nn_sigma);
                 break;
 
 	    case 'u':
@@ -792,32 +745,13 @@ static void sifter_die() {
 
 bool BundlerApp::OnInit()
 {
+
+
     printf("[OnInit] Running program %s\n", argv[0]);
 
     char *imageList;
     
     bool load_file = false;
-    // bool fisheye = false;
-    // bool dump_images = false;
-    // bool dump_output = false, dump_output_all = false;
-    // bool fixed_focal_length = true;
-    // bool bundle_provided = false;
-    // bool bg_provided = false;
-    // bool load_images = false, load_keys = false, load_matches = false;
-    // bool use_constraints = false;
-    // double init_focal_length = 532.0;
-    // double k1 = 0.0, k2 = 0.0;
-    // int init_pair[2] = { -1, -1 };
-
-    // char *fisheye_params = NULL;
-    // char *output_file = NULL, *output_base = NULL;
-    // char *bundle_file = NULL;
-    // char *bg_file = NULL;
-    // char *match_directory = ".";
-    // char *output_directory = ".";
-    // char *sift_binary = SIFT_COMMAND;
-
-    // m_bg_file = NULL;
 
     if (argc >= 2) {
 	printf("Loading images from file '%s'\n", argv[1]);
@@ -845,18 +779,6 @@ bool BundlerApp::OnInit()
 
     printf("[BundlerApp::OnInit] Loading frame...\n");
 
-    // bool use_window = false;
-    // bool use_window = true;
-
-    /* Initialize the image handlers */
-    // wxImage::AddHandler(new wxPGMHandler());
-
-#if 0
-    wxString str = wxT("wxWidgets OpenGL Cube Sample");
-    wxFrame *frame2 = new wxFrame(NULL, wxID_ANY, str, wxDefaultPosition, wxSize(400, 300));
-    printf("tested frame\n");
-#endif
-
     printf("[BundlerApp::OnInit] Loading images...\n");
     fflush(stdout);
     if (load_file) {
@@ -875,16 +797,16 @@ bool BundlerApp::OnInit()
 	if (m_fisheye) {
 	    double fCx = 0.0, fCy = 0.0, fRad = 0.0, fAngle = 0.0, fFocal = 0.0;
 	    ReadFisheyeParameters(m_fisheye_params, 
-				             fCx, fCy, fRad, fAngle, fFocal);
+                                  fCx, fCy, fRad, fAngle, fFocal);
 	    
 	    for (int i = 0; i < num_images; i++) {
-            if (m_image_data[i].m_fisheye) {
-                m_image_data[i].m_fCx = fCx;
-                m_image_data[i].m_fCy = fCy;
-                m_image_data[i].m_fRad = fRad;
-                m_image_data[i].m_fAngle = fAngle;
-                m_image_data[i].m_fFocal = fFocal;
-            }                
+                if (m_image_data[i].m_fisheye) {
+                    m_image_data[i].m_fCx = fCx;
+                    m_image_data[i].m_fCy = fCy;
+                    m_image_data[i].m_fRad = fRad;
+                    m_image_data[i].m_fAngle = fAngle;
+                    m_image_data[i].m_fFocal = fFocal;
+                }                
 	    }
 	}
 
@@ -901,11 +823,7 @@ bool BundlerApp::OnInit()
         printf("[BundlerApp::OnInit] Computing epipolar geometry\n");
 
         /* Compute homographies between images */
-#ifdef SBK_OUTPUT
-        ComputeTransforms(true);
-#else
         ComputeTransforms(false);
-#endif
 
 	ComputeEpipolarGeometry();
 
@@ -956,7 +874,6 @@ bool BundlerApp::OnInit()
 #endif
 
     /* Do bundle adjustment (or read from file if provided) */
-    // ParseCommand("UndistortAll", NULL);
     if (m_bundle_provided) {
         printf("[BundlerApp::OnInit] Reading bundle file...\n");
         ReadBundleFile(m_bundle_file);
@@ -965,8 +882,6 @@ bool BundlerApp::OnInit()
             printf("[BundlerApp::OnInit] Reflecting scene...\n");
             FixReflectionBug();
         }
-
-        // AutoTagImages();
 
 #ifndef __DEMO__
 
@@ -1049,7 +964,6 @@ bool BundlerApp::OnInit()
 #define MIN_POINT_VIEWS 3 // 0 // 2
         if (!m_run_bundle) {
             SetMatchesFromPoints(MIN_POINT_VIEWS);
-            // WriteMatchTableDrew(".final");            
 
             printf("[BundlerApp::OnInit] "
                    "Setting up image points and lines...\n");
@@ -1133,11 +1047,7 @@ bool BundlerApp::OnInit()
 
 static BundlerApp *bundler_app = NULL;
 
-BundlerApp &wxGetApp() {
-    return *bundler_app;
-}
-
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     // mtrace();
 
