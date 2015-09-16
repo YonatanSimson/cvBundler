@@ -1044,16 +1044,3 @@ bool BundlerApp::OnInit()
 
     return true;
 }
-
-static BundlerApp *bundler_app = NULL;
-
-int main(int argc, char **argv)
-{
-    // mtrace();
-
-    bundler_app = new BundlerApp();
-    bundler_app->argc = argc;
-    bundler_app->argv = argv;
-
-    bundler_app->OnInit();
-}
