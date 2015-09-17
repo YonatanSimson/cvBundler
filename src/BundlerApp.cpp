@@ -850,7 +850,7 @@ bool BundlerApp::OnInit()
         }
 
         ReRunSFM();
-        exit(0);
+        return true;
     }
 
     if (m_use_constraints) {
@@ -1036,7 +1036,7 @@ bool BundlerApp::OnInit()
         if (m_bundle_version < 0.3)
             FixReflectionBug();
 
-	exit(0);
+    return true;
 #endif
     }
 
