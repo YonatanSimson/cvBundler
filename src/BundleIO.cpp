@@ -1323,20 +1323,22 @@ void BaseApp::ReadIntrinsicsFile()
 
     int num_images = GetNumImages();
     for (int i = 0; i < num_images; i++) {
-        assert(m_image_data[i].m_has_init_focal);
-
-        double f = m_image_data[i].m_init_focal;
-        
-        double min_dist = DBL_MAX;
+        //assert(m_image_data[i].m_has_init_focal);
         int best_K = -1;
-        for (int j = 0; j < num_intrinsics; j++) {
-            double f_j = 0.5 * (Ks[j].K[0] + Ks[j].K[4]);
-            double dist = fabs(f_j - f);
-            if (dist < min_dist) {
-                best_K = j;
-                min_dist = dist;
+        if(m_image_data[i].m_has_init_focal) {
+            double f = m_image_data[i].m_init_focal;
+
+            double min_dist = DBL_MAX;
+            for (int j = 0; j < num_intrinsics; j++) {
+                double f_j = 0.5 * (Ks[j].K[0] + Ks[j].K[4]);
+                double dist = fabs(f_j - f);
+                if (dist < min_dist) {
+                    best_K = j;
+                    min_dist = dist;
+                }
             }
         }
+        else best_K = i;
 
         printf("  image %d has intrinsics %d\n", i, best_K);
 
