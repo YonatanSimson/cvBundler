@@ -689,7 +689,8 @@ void BundlerApp::ProcessOptions(int argc, char **argv)
 		}
 
 		char *opt_str = new char[4096];
-		fread(opt_str, 1, 4096, f);
+        int nbytes = fread(opt_str, 1, 4096, f);
+        if(nbytes < 4096) opt_str[nbytes] = '\0';
 		fclose(f);
 
                 std::string str(opt_str);
