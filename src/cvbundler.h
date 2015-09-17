@@ -44,21 +44,31 @@ public:
 //    void doStructureFromMotion(const vector< KeyPointList > &keypoints,
 //                               const vector< vector< MatchList > > &matches){};
 
+    const vector<Point3f>& getPoints3d() { return _points3d; }
+    const vector<Scalar>& getPointsColor() { return _pointsColor; }
+
 private:
     vector<Mat> _images;
     vector< KeyPointList > _keypoints;
     vector< vector< MatchList > > _matches;
-    vector<Mat> _camMatrix, _distCoeffs;
+
     bool _fixedIntrinsic;
     string _matchesFilename;
+
+    vector<Mat> _camMatrix, _distCoeffs, _rvecs, _tvecs;
+    vector<Point3f> _points3d;
+    vector<Scalar> _pointsColor;
+
 
     static void _writeImagesFiles(string imgListFilename, string imageBasename, const vector<Mat> &images);
     static void _writeKeypointsFiles(string basename, const vector< KeyPointList > &keypoints);
     static void _writeMatchesFile(string matchesFilename, const vector< vector< MatchIndexList > > &matchesIndexes);
-    void _writeOptionsFile(string optionsFilename);
+    void _writeOptionsFile(string optionsFilename, string outputFilename);
 //    void _writeIntrinsicFile(){};
 
     static void _getargcargv(string imgListFilename, string optionsFilename, int &argc, char** &argv);
+
+    void readOutputFile(string filename);
 
 
 
