@@ -36,8 +36,13 @@ class cvbundler {
 public:
     cvbundler() : _fixedIntrinsic(false) {};
 
-    void setCameraParams(const Mat &camMatrix, const Mat &distCoeffs){};
-    void setCameraParams(const vector<Mat> &camMatrix, const vector<Mat> &distCoeffs){};
+//    void setCameraParams(const Mat &camMatrix, const Mat &distCoeffs){};
+    void setCameraParams(const vector<Mat> &camMatrix, const vector<Mat> &distCoeffs){
+        CV_Assert(_camMatrix.size() == _distCoeffs.size());
+        _camMatrix = camMatrix;
+        _distCoeffs = distCoeffs;
+        _fixedIntrinsic = true;
+    };
 
     void doStructureFromMotion(const vector<Mat> &images, const vector< KeyPointList > &keypoints,
                                const vector< vector< MatchIndexList > > &matchesIndexes);
@@ -47,7 +52,7 @@ public:
     const vector<Point3f>& getPoints3d() { return _points3d; }
     const vector<Scalar>& getPointsColor() { return _pointsColor; }
 
-private:
+public:
     vector<Mat> _images;
     vector< KeyPointList > _keypoints;
     vector< vector< MatchList > > _matches;
@@ -60,11 +65,11 @@ private:
     vector<Scalar> _pointsColor;
 
 
-    static void _writeImagesFiles(string imgListFilename, string imageBasename, const vector<Mat> &images);
+    void _writeImagesFiles(string imgListFilename, string imageBasename, const vector<Mat> &images);
     static void _writeKeypointsFiles(string basename, const vector< KeyPointList > &keypoints);
     static void _writeMatchesFile(string matchesFilename, const vector< vector< MatchIndexList > > &matchesIndexes);
     void _writeOptionsFile(string optionsFilename, string outputFilename);
-//    void _writeIntrinsicFile(){};
+    void _writeIntrinsicFile(string intrinsicsFilename);
 
     static void _getargcargv(string imgListFilename, string optionsFilename, int &argc, char** &argv);
 

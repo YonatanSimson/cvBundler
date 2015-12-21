@@ -7,6 +7,25 @@
 
 namespace cvbundler {
 
+void _writeMatchesFileVSFM(const vector< vector< MatchIndexList > > &matchesIndexes) {
+    ofstream matchesfile;
+    matchesfile.open("vsfmmatches.txt");
+    for(int i=0; i<matchesIndexes.size()-1; i++) {
+        for(int j=i+1; j<matchesIndexes.size(); j++) {
+            if(matchesIndexes[i][j].size() == 0) continue;
+            matchesfile << "img" << i << ".jpg img" << j << ".jpg " << matchesIndexes[i][j].size() << "\n";
+            for(int k=0; k<matchesIndexes[i][j].size(); k++)
+                matchesfile << matchesIndexes[i][j][k].first << " ";
+            matchesfile << "\n";
+            for(int k=0; k<matchesIndexes[i][j].size(); k++)
+                matchesfile << matchesIndexes[i][j][k].second << " ";
+            matchesfile << "\n";
+        }
+    }
+    matchesfile.close();
+}
+
+
 void cvbundler::doStructureFromMotion(const vector<Mat> &images, const vector< KeyPointList > &keypoints,
                                       const vector< vector< MatchIndexList > > &matchesIndexes)
 {
@@ -17,19 +36,20 @@ void cvbundler::doStructureFromMotion(const vector<Mat> &images, const vector< K
     // Bundler interface is a bit confusing, some of the data is read from files in the middle of the process.
     // Thus, instead of pass my data directly, the simplest option is creating the files myself and make Bundler read them.
 
-    _writeImagesFiles("imageList", "img", images);
+    _writeImagesFiles("scene3_imageList.txt", "scene3_img", images);
 
-    _writeKeypointsFiles("img", keypoints);
+    _writeKeypointsFiles("scene3_img", keypoints);
 
-    _matchesFilename = "matches.init.txt";
+    _matchesFilename = "scene3_matches.txt";
     _writeMatchesFile(_matchesFilename, matchesIndexes);
+    _writeMatchesFileVSFM(matchesIndexes);
 
+    string outputFilename = "scene3_bundle.out";
+    _writeOptionsFile("scene3_options.txt", outputFilename);
 
-    string outputFilename = "bundle.out";
-    _writeOptionsFile("options.txt", outputFilename);
+    if(_fixedIntrinsic) _writeIntrinsicFile("scene3_intrinsics.txt");
 
-////    if(_fixedIntrinsic)
-////        _writeIntrinsicFile();
+    std::cerr << "GENERATING DATA FOR BUNDLER, CHANGE X Y IN KEYPOINTS FOR VSFM" << std::endl;
 
     char** argv;
     int argc;
@@ -39,11 +59,11 @@ void cvbundler::doStructureFromMotion(const vector<Mat> &images, const vector< K
     bundler_app->argc = argc;
     bundler_app->argv = argv;
 
+    return;
+
     bundler_app->OnInit();
 
     readOutputFile(outputFilename);
-
-
 
 }
 
@@ -57,8 +77,10 @@ void cvbundler::_writeImagesFiles(string imgListFilename, string imageBasename, 
         stringstream imgName;
         imgName << imageBasename << i << ".jpg";
         imwrite(imgName.str(), images[i]);
-
-        imgListFile << "./" << imgName.str() << "\n";
+        if(_fixedIntrinsic)
+            imgListFile << "./" << imgName.str() << " 0 " << 0.5*(_camMatrix[i].ptr<float>()[0]+_camMatrix[i].ptr<float>()[4])  << "\n";
+        else
+            imgListFile << "./" << imgName.str() << "\n";
     }
     imgListFile.close();
 }
@@ -99,14 +121,46 @@ void cvbundler::_writeOptionsFile(string optionsFilename, string outputFilename)
     ofstream optionsfile;
     optionsfile.open(optionsFilename.c_str());
     optionsfile << "--run_bundle\n";
-    optionsfile << "--use_focal_estimate\n";
-    optionsfile << "--constrain_focal\n";
-    optionsfile << "--estimate_distortion\n";
+    //optionsfile << "--slow_bundle\n";
     optionsfile << "--match_table " << _matchesFilename << "\n";
-    optionsfile << "--variable_focal_length\n";
     optionsfile << "--output " << outputFilename << "\n";
-    optionsfile << "--constrain_focal_weight 0.0001\n";
+    if(false && _fixedIntrinsic) {
+        optionsfile << "--intrinsics intrinsics.txt\n";
+    }
+    else {
+        optionsfile << "--constrain_focal\n";
+        optionsfile << "--use_focal_estimate\n";
+        optionsfile << "--estimate_distortion\n";
+        optionsfile << "--variable_focal_length\n";
+        optionsfile << "--constrain_focal_weight 0.0001\n";
+    }
     optionsfile.close();
+}
+
+
+void cvbundler::_writeIntrinsicFile(string intrinsicsFilename) {
+    ofstream intrinsicsfile;
+    intrinsicsfile.open(intrinsicsFilename.c_str());
+    intrinsicsfile << _camMatrix.size() << "\n";
+    for(int c=0; c<_camMatrix.size(); c++) {
+        CV_Assert(_camMatrix[c].total() == 9);
+        CV_Assert(_distCoeffs[c].total() <= 5);
+
+        Mat aux;
+
+        _camMatrix[c].convertTo(aux, CV_64FC1);
+        for(int i=0; i<aux.total(); i++)
+            intrinsicsfile << aux.ptr<double>()[i] << " ";
+        intrinsicsfile << "\n";
+
+        _distCoeffs[c].convertTo(aux, CV_64FC1);
+        for(int i=0; i<aux.total(); i++)
+            intrinsicsfile << aux.ptr<double>()[i] << " ";
+        for(int i=aux.total(); i<5; i++)
+            intrinsicsfile << "0.0 ";
+        intrinsicsfile << "\n";
+    }
+    intrinsicsfile.close();
 }
 
 
